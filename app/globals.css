@@ -226,9 +226,9 @@ p, span, div, a, li, button, input {
 .icon-btn {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-card);
+  border-radius: 50%; /* Circular for a more elegant look */
+  border: none;
+  background: transparent;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
@@ -241,11 +241,9 @@ p, span, div, a, li, button, input {
 }
 
 .icon-btn:hover {
-  background: var(--accent-primary);
-  color: white;
-  border-color: var(--accent-primary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--accent-glow);
 }
 
 .badge-count {
