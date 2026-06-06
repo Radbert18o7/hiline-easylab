@@ -49,7 +49,9 @@ export default function LoginPage() {
       await fetch('/api/auth/login', { method: 'POST' });
       localStorage.setItem('hl-auth', 'authenticated');
       toast.success('Welcome back! 🎉');
-      setTimeout(() => router.push('/dashboard'), 500);
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 500);
     } else {
       setLoading(false);
       toast.error('Invalid email or password');
