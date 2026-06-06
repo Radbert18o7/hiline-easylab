@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getSocket } from '@/lib/socket';
+import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
 import { MessageSquare, X, Smile, Send } from 'lucide-react';
 
@@ -49,7 +49,7 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
   const [EmojiPicker, setEmojiPicker] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const socketRef = useRef(null);
+  const channelRef = useRef(null);
   const unreadRef = useRef(0);
   const isOpenRef = useRef(isOpen);
 
@@ -78,55 +78,77 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
     } catch {}
   }
 
-  // Socket.IO setup
+  // Supabase Channels setup
   useEffect(() => {
     if (!user?.fingerprint) return;
 
     loadMessages();
-    const socket = getSocket();
-    socketRef.current = socket;
 
-    // Join room
-    socket.emit('user-join', {
-      fingerprint: user.fingerprint,
-      name: user.name || 'Anonymous',
-      ip: user.ip || '',
+    const channel = supabase.channel('global-chat', {
+      config: {
+        presence: {
+          key: user.fingerprint,
+        },
+      },
     });
 
-    socket.on('online-users', (users) => {
-      setOnlineUsers(users);
-    });
+    channelRef.current = channel;
 
-    socket.on('new-message', (msg) => {
-      setMessages(prev => [...prev, msg]);
-
-      // Play receive sound if not own message
-      if (msg.user_fingerprint !== user.fingerprint) {
-        createReceiveSound();
-
-        // Increment unread if panel is closed
-        if (!isOpenRef.current) {
-          unreadRef.current += 1;
-          onUnreadChange?.(unreadRef.current);
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const users = [];
+        for (const [key, presences] of Object.entries(state)) {
+          if (presences.length > 0) {
+            users.push(presences[0]);
+          }
         }
-      }
-    });
+        setOnlineUsers(users);
+      })
+      .on('broadcast', { event: 'new-message' }, ({ payload }) => {
+        const msg = payload;
+        setMessages(prev => {
+          // Prevent duplicates if self-broadcast is somehow received
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+
+        // Play receive sound if not own message
+        if (msg.user_fingerprint !== user.fingerprint) {
+          createReceiveSound();
+
+          // Increment unread if panel is closed
+          if (!isOpenRef.current) {
+            unreadRef.current += 1;
+            onUnreadChange?.(unreadRef.current);
+          }
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            fingerprint: user.fingerprint,
+            name: user.name || 'Anonymous',
+            ip: user.ip || '',
+          });
+        }
+      });
 
     return () => {
-      socket.off('online-users');
-      socket.off('new-message');
+      supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.fingerprint]);
 
-  // Update socket name when user changes
+  // Update user name in presence
   useEffect(() => {
-    if (socketRef.current && user?.fingerprint) {
-      socketRef.current.emit('update-name', {
+    if (channelRef.current && user?.fingerprint) {
+      channelRef.current.track({
         fingerprint: user.fingerprint,
-        name: user.name,
+        name: user.name || 'Anonymous',
+        ip: user.ip || '',
       });
     }
-  }, [user?.name]);
+  }, [user?.name, user?.fingerprint, user?.ip]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -145,12 +167,25 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
     // Play send sound
     createSendSound();
 
-    // Emit via Socket.IO
-    const socket = getSocket();
-    socket.emit('send-message', {
-      fingerprint: user.fingerprint,
-      name: user.name || 'Anonymous',
+    // Emit via Supabase Broadcast
+    const msgPayload = {
+      id: Date.now().toString(),
+      user_fingerprint: user.fingerprint,
+      user_name: user.name || 'Anonymous',
       message: text,
+      created_at: new Date().toISOString(),
+    };
+
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'new-message',
+      payload: msgPayload,
+    });
+    
+    // Add to local state immediately
+    setMessages(prev => {
+      if (prev.some(m => m.id === msgPayload.id)) return prev;
+      return [...prev, msgPayload];
     });
 
     // Save to DB
