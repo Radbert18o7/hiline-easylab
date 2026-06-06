@@ -47,22 +47,10 @@ export async function POST(request) {
       if (pwRes.ok) {
         const pickwaveBuffer = Buffer.from(await pwRes.arrayBuffer());
 
-        // Extract text from pickwave PDF using pdfjs
-        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/legacy/build/pdf.worker.mjs';
-
-        const pwPdf = await pdfjsLib.getDocument({
-          data: new Uint8Array(pickwaveBuffer),
-          useSystemFonts: true,
-          disableFontFace: true,
-        }).promise;
-
-        for (let i = 1; i <= pwPdf.numPages; i++) {
-          const page = await pwPdf.getPage(i);
-          const textContent = await page.getTextContent();
-          // Join with spaces — preserves proximity of SKU and order ref on same line
-          pickwaveRawText += textContent.items.map(item => item.str).join(' ') + '\n';
-        }
+        // Extract text from pickwave PDF using pdf-parse
+        const pdfParse = (await import('pdf-parse')).default;
+        const pwData = await pdfParse(pickwaveBuffer);
+        pickwaveRawText = pwData.text;
 
         console.log('Pickwave raw text sample:', pickwaveRawText.substring(0, 500));
       }
