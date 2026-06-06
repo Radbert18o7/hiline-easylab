@@ -30,6 +30,9 @@ const nextConfig = {
       'pdfjs-dist',
       '@napi-rs/canvas',
     ],
+    outputFileTracingIncludes: {
+      '/api/**/*': ['./node_modules/pdfjs-dist/**/*'],
+    },
   },
 };
 
