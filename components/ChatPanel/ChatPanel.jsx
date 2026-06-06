@@ -325,7 +325,6 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      style={{ position: 'relative' }}
     >
       {isDragging && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '16px', fontWeight: 600, borderRadius: '8px', pointerEvents: 'none' }}>
@@ -450,7 +449,7 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
           </button>
           <button
             id="emoji-toggle-btn"
-            className="icon-btn"
+            className="emoji-toggle-btn"
             onClick={() => setShowEmoji(!showEmoji)}
             title="Emoji picker"
             disabled={isUploading}
