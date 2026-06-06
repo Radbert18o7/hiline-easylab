@@ -26,6 +26,7 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: [
       'tesseract.js',
+      'tesseract.js-core',
       'canvas',
       'pdfjs-dist',
       '@napi-rs/canvas',
