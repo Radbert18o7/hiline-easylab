@@ -28,6 +28,7 @@ const nextConfig = {
       'tesseract.js',
       'canvas',
       'pdfjs-dist',
+      '@napi-rs/canvas',
     ],
   },
 };
