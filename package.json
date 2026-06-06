@@ -31,8 +31,7 @@
     "react-bootstrap": "^2.10.10",
     "react-dom": "^18",
     "react-dropzone": "^15.0.0",
-    "react-hot-toast": "^2.6.0",
-    "tesseract.js": "^7.0.0"
+    "react-hot-toast": "^2.6.0"
   },
   "devDependencies": {
     "eslint": "^8",
