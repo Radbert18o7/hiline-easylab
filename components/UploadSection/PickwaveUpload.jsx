@@ -88,6 +88,21 @@ export default function PickwaveUpload({ user, onUploadSuccess }) {
       </div>
 
       <div className="hl-card-body">
+        {/* Pickwave ID Input */}
+        <div style={{ marginBottom: '20px' }}>
+          <label htmlFor="pickwave-id-input" className="hl-label">Pickwave ID</label>
+          <input
+            id="pickwave-id-input"
+            type="text"
+            className="hl-input"
+            placeholder="e.g. PW-2025-001"
+            value={pickwaveId}
+            onChange={e => setPickwaveId(e.target.value)}
+            disabled={loading}
+            maxLength={50}
+          />
+        </div>
+
         {/* Dropzone */}
         {!file ? (
           <motion.div
@@ -123,21 +138,6 @@ export default function PickwaveUpload({ user, onUploadSuccess }) {
             ><X size={16} /></button>
           </div>
         )}
-
-        {/* Pickwave ID Input */}
-        <div style={{ marginTop: '16px' }}>
-          <label htmlFor="pickwave-id-input" className="hl-label">Pickwave ID</label>
-          <input
-            id="pickwave-id-input"
-            type="text"
-            className="hl-input"
-            placeholder="e.g. PW-2025-001"
-            value={pickwaveId}
-            onChange={e => setPickwaveId(e.target.value)}
-            disabled={loading}
-            maxLength={50}
-          />
-        </div>
 
         {/* Progress */}
         {loading && <ProgressBar progress={progress} label="Uploading pickwave..." show={loading} />}
