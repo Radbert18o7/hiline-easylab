@@ -52,40 +52,32 @@ export async function POST(request) {
     const originalFileUrl = origUrlData.publicUrl;
     console.log('[route.js] Original file URL:', originalFileUrl);
 
-    // 3. Download the pickwave PDF and extract text
-    let pickwaveRawText = '';
+    // 3. Download the pickwave PDF
+    let pickwaveBuffer = null;
     try {
       console.log('[route.js] Fetching pickwave PDF from URL:', pickwaveDoc.file_url);
       const pwRes = await fetch(pickwaveDoc.file_url);
       console.log('[route.js] Pickwave fetch status:', pwRes.status, pwRes.statusText);
       if (pwRes.ok) {
-        const pickwaveBuffer = Buffer.from(await pwRes.arrayBuffer());
+        pickwaveBuffer = Buffer.from(await pwRes.arrayBuffer());
         console.log('[route.js] Pickwave PDF buffer size:', pickwaveBuffer.length, 'bytes');
-
-        console.log('[route.js] Importing pdf-parse...');
-        const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
-        console.log('[route.js] pdf-parse imported OK');
-
-        const pwData = await pdfParse(pickwaveBuffer);
-        pickwaveRawText = pwData.text;
-        console.log('[route.js] Pickwave text extracted. Length:', pickwaveRawText.length);
-        console.log('[route.js] Pickwave raw text sample:', pickwaveRawText.substring(0, 500));
       } else {
         console.error('[route.js] Pickwave PDF fetch FAILED:', pwRes.status, pwRes.statusText);
       }
     } catch (e) {
-      console.error('[route.js] Pickwave fetch/parse ERROR:', e.message, e.stack);
+      console.error('[route.js] Pickwave fetch ERROR:', e.message, e.stack);
     }
 
-    if (!pickwaveRawText) {
-      console.error('[route.js] pickwaveRawText is EMPTY — this will cause 0 matches!');
+    if (!pickwaveBuffer) {
+      console.error('[route.js] pickwaveBuffer is EMPTY — this will cause errors!');
+      return NextResponse.json({ error: 'Failed to download pickwave' }, { status: 500 });
     }
 
     // 4. Process labels
     console.log('[route.js] Calling processLabelsPdf...');
     const { buffer: processedBuffer, matchedCount, totalPages } = await processLabelsPdf(
       labelsBuffer,
-      pickwaveRawText
+      pickwaveBuffer
     );
     console.log(`[route.js] processLabelsPdf returned: ${matchedCount}/${totalPages} matched`);
 
