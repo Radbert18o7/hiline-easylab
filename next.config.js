@@ -2,7 +2,6 @@
 const nextConfig = {
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      config.resolve.alias['canvas'] = false;
       config.resolve.alias['pdfjs-dist'] = false;
     }
 
@@ -11,7 +10,6 @@ const nextConfig = {
       fs: false,
       net: false,
       tls: false,
-      canvas: false,
     };
 
     // Handle .mjs files
@@ -27,9 +25,7 @@ const nextConfig = {
     serverComponentsExternalPackages: [
       'tesseract.js',
       'tesseract.js-core',
-      'canvas',
       'pdfjs-dist',
-      '@napi-rs/canvas',
     ],
     outputFileTracingIncludes: {
       '/*': [
