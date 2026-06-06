@@ -82,6 +82,7 @@ export default function LabelsUpload({ user, onUploadSuccess }) {
           if (prev < 55) { setProgressLabel('Processing label pages...'); return prev + 1; }
           if (prev < 75) { setProgressLabel('Matching SKUs to labels...'); return prev + 0.5; }
           if (prev < 88) { setProgressLabel('Overlaying SKU text on labels...'); return prev + 0.3; }
+          if (prev < 99) { setProgressLabel('Finalizing document...'); return prev + 0.1; }
           return prev;
         });
       }, 300);

@@ -635,6 +635,30 @@ p, span, div, a, li, button, input {
   overflow: hidden;
 }
 
+/* Beautiful Sparkling Yellow and White Confetti/Stars */
+.progress-fill::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: 
+    radial-gradient(circle, #FFEAA7 2.5px, transparent 2.5px),
+    radial-gradient(circle, #FFFFFF 1.5px, transparent 1.5px),
+    radial-gradient(circle, #FDCB6E 2px, transparent 2px),
+    radial-gradient(circle, #FFFFFF 2.5px, transparent 2.5px),
+    radial-gradient(circle, #FFF 1px, transparent 1px);
+  background-size: 35px 35px, 45px 45px, 55px 55px, 25px 25px, 15px 15px;
+  background-position: 0 0, 15px 15px, 25px 25px, 5px 5px, 30px 10px;
+  animation: sparkles-anim 2s linear infinite;
+  opacity: 0.9;
+  z-index: 1;
+}
+
+@keyframes sparkles-anim {
+  0% { background-position: 0 0, 15px 15px, 25px 25px, 5px 5px, 30px 10px; opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { background-position: -35px 35px, -45px 45px, -55px 55px, -25px 25px, -15px 15px; opacity: 0.6; }
+}
+
 .progress-fill::after {
   content: '';
   position: absolute;
@@ -644,6 +668,7 @@ p, span, div, a, li, button, input {
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
   animation: shimmer 1.5s infinite;
+  z-index: 2;
 }
 
 @keyframes shimmer {
