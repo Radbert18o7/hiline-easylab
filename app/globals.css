@@ -357,15 +357,23 @@ p, span, div, a, li, button, input {
 }
 
 .hl-card-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--accent-gradient);
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #7C3AED;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
   flex-shrink: 0;
+  color: #09090B;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.25);
+  transition: var(--transition);
+}
+
+.hl-card-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.5px;
 }
 
 .hl-card-body {
