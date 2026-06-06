@@ -1,0 +1,28 @@
+import { parsePickwaveRecords } from './lib/pdfProcessor.js';
+
+const sampleText = `
+Order IdSubSourceOrder DateOrder Reference Shipping Address
+87703-IHOWLING BEAGLE PUPPY STATUE11.G.01DATAIMPORT
+EXPORT
+THE HOME DEPOT 
+US 
+6/5/2026 1:32:37 PM48832750Pamela Bowen
+12164 Sunchase 
+Drive 
+87728-ACAT SLEEPING LYING DOWN - 
+BLACK/WHITE 
+111.D.01DATAIMPORT
+EXPORT
+THE HOME DEPOT 
+US 
+6/5/2026 1:32:37 PM48786211Melinda Carr
+251 10th Ct
+Vero Beach
+87938PIG-SITTING-LARGE111.D.03DATAIMPORT
+EXPORT
+THE HOME DEPOT
+78415-A SOLAR FLORAL GLASS BIRD BATH W/STAND 1 4.G.01 DATAIMPORT EXPORT THE HOME DEPOT US 6/5/2026 1:32:37 PM 48866310 Kimberly Whitlock 305 Pine St
+`;
+
+const records = parsePickwaveRecords(sampleText);
+console.log(records);
