@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
-import { MessageSquare, X, Smile, Send } from 'lucide-react';
+import { MessageSquare, X, Smile, Send, Paperclip, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 // Web Audio API sound synthesis (no external files needed)
 function createSendSound() {
@@ -47,8 +47,12 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
   const [inputText, setInputText] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [EmojiPicker, setEmojiPicker] = useState(null);
+  const [stagedFile, setStagedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const channelRef = useRef(null);
   const unreadRef = useRef(0);
   const isOpenRef = useRef(isOpen);
@@ -157,22 +161,70 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
     }
   }, [messages, isOpen]);
 
+  function parseMessagePayload(text) {
+    try {
+      const obj = JSON.parse(text);
+      if (obj && (obj.text !== undefined || obj.attachment)) return obj;
+      return { text };
+    } catch {
+      return { text };
+    }
+  }
+
   async function sendMessage() {
     const text = inputText.trim();
-    if (!text || !user) return;
+    if ((!text && !stagedFile) || !user || isUploading) return;
+
+    setIsUploading(true);
+    let attachmentObj = null;
+
+    try {
+      if (stagedFile) {
+        const formData = new FormData();
+        formData.append('file', stagedFile);
+        
+        const uploadRes = await fetch('/api/chat/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json();
+          toast.error(err.error || 'Failed to upload file');
+          setIsUploading(false);
+          return;
+        }
+        
+        attachmentObj = await uploadRes.json();
+      }
+    } catch (err) {
+      toast.error('Upload failed');
+      setIsUploading(false);
+      return;
+    }
 
     setInputText('');
+    setStagedFile(null);
     setShowEmoji(false);
+    setIsUploading(false);
 
     // Play send sound
     createSendSound();
+
+    let finalMessageString = text;
+    if (attachmentObj) {
+      finalMessageString = JSON.stringify({
+        text: text,
+        attachment: attachmentObj
+      });
+    }
 
     // Emit via Supabase Broadcast
     const msgPayload = {
       id: Date.now().toString(),
       user_fingerprint: user.fingerprint,
       user_name: user.name || 'Anonymous',
-      message: text,
+      message: finalMessageString,
       created_at: new Date().toISOString(),
     };
 
@@ -189,18 +241,18 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
     });
 
     // Save to DB
-    await fetch('/api/chat/messages', {
+    fetch('/api/chat/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_fingerprint: user.fingerprint,
         user_name: user.name,
-        message: text,
+        message: finalMessageString,
       }),
     });
 
     // Log action
-    await fetch('/api/logs', {
+    fetch('/api/logs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -208,7 +260,7 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
         user_name: user.name,
         ip: user.ip,
         action: 'chat_message_sent',
-        metadata: { message_preview: text.slice(0, 50) },
+        metadata: { has_attachment: !!attachmentObj },
       }),
     });
   }
@@ -216,7 +268,42 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      if (!isUploading) sendMessage();
+    }
+  }
+
+  function handleFileSelect(e) {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error('File exceeds 20MB limit');
+        return;
+      }
+      setStagedFile(file);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault();
+    setIsDragging(false);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error('File exceeds 20MB limit');
+        return;
+      }
+      setStagedFile(file);
     }
   }
 
@@ -235,7 +322,16 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
       className={`chat-panel${isOpen ? '' : ' hidden'}`}
       role="complementary"
       aria-label="Team chat"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{ position: 'relative' }}
     >
+      {isDragging && (
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '16px', fontWeight: 600, borderRadius: '8px', pointerEvents: 'none' }}>
+          Drop file to attach
+        </div>
+      )}
       {/* Header */}
       <div className="chat-panel-header">
         <MessageSquare size={20} />
@@ -275,13 +371,36 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
         )}
         {messages.map((msg, i) => {
           const isOwn = msg.user_fingerprint === user?.fingerprint;
+          const parsed = parseMessagePayload(msg.message);
+          const hasImage = parsed.attachment && parsed.attachment.type.startsWith('image/');
+
           return (
             <div key={msg.id || i} className={`chat-message ${isOwn ? 'own' : 'other'}`} id={`msg-${i}`}>
               <div className="msg-meta">
                 {!isOwn && <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px' }}>{msg.user_name}</span>}
                 <span>{formatTime(msg.created_at)}</span>
               </div>
-              <div className="msg-bubble">{msg.message}</div>
+              <div className="msg-bubble" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {parsed.attachment && (
+                  <div className="msg-attachment">
+                    {hasImage ? (
+                      <a href={parsed.attachment.url} target="_blank" rel="noopener noreferrer">
+                        <img 
+                          src={parsed.attachment.url} 
+                          alt="attachment" 
+                          style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '4px', cursor: 'pointer', objectFit: 'contain' }} 
+                        />
+                      </a>
+                    ) : (
+                      <a href={parsed.attachment.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px', background: isOwn ? 'rgba(255,255,255,0.1)' : 'var(--bg-tertiary)', borderRadius: '4px', color: isOwn ? '#fff' : 'var(--text-primary)', textDecoration: 'none', fontSize: '13px' }}>
+                        <FileText size={16} />
+                        <span style={{ wordBreak: 'break-all' }}>{parsed.attachment.name}</span>
+                      </a>
+                    )}
+                  </div>
+                )}
+                {parsed.text && <div>{parsed.text}</div>}
+              </div>
             </div>
           );
         })}
@@ -301,13 +420,40 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
       )}
 
       {/* Input Area */}
-      <div className="chat-input-area">
+      <div className="chat-input-area" style={{ position: 'relative' }}>
+        {stagedFile && (
+          <div style={{ position: 'absolute', top: '-40px', left: '16px', right: '16px', background: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+              {stagedFile.type.startsWith('image/') ? <ImageIcon size={16} className="text-muted" /> : <FileText size={16} className="text-muted" />}
+              <span style={{ fontSize: '12px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '200px' }}>{stagedFile.name}</span>
+            </div>
+            <button className="icon-btn" onClick={() => setStagedFile(null)} disabled={isUploading} style={{ width: '20px', height: '20px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <X size={14} />
+            </button>
+          </div>
+        )}
         <div className="chat-input-row">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileSelect} 
+            style={{ display: 'none' }} 
+          />
+          <button
+            className="icon-btn"
+            onClick={() => fileInputRef.current?.click()}
+            title="Attach file"
+            disabled={isUploading}
+            aria-label="Attach file"
+          >
+            <Paperclip size={20} />
+          </button>
           <button
             id="emoji-toggle-btn"
-            className="emoji-toggle-btn"
+            className="icon-btn"
             onClick={() => setShowEmoji(!showEmoji)}
             title="Emoji picker"
+            disabled={isUploading}
             aria-label="Toggle emoji picker"
           >
             <Smile size={20} />
@@ -327,10 +473,10 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
             id="send-message-btn"
             className="send-btn"
             onClick={sendMessage}
-            disabled={!inputText.trim()}
+            disabled={(!inputText.trim() && !stagedFile) || isUploading}
             aria-label="Send message"
           >
-            <Send size={18} />
+            {isUploading ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
           </button>
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
