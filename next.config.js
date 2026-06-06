@@ -32,7 +32,7 @@ const nextConfig = {
       '@napi-rs/canvas',
     ],
     outputFileTracingIncludes: {
-      '/api/**/*': [
+      '/*': [
         './node_modules/pdfjs-dist/**/*',
         './node_modules/tesseract.js-core/**/*',
         './node_modules/tesseract.js/**/*',

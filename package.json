@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "start:win": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "node postinstall.js"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
@@ -25,6 +26,7 @@
     "pdf-parse": "1.1.1",
     "pdfjs-dist": "^3.11.174",
     "puppeteer": "^25.1.0",
+    "pureimage": "^0.4.18",
     "react": "^18",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^18",
