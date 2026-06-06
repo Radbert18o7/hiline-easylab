@@ -48,7 +48,7 @@ export async function POST(request) {
         const pickwaveBuffer = Buffer.from(await pwRes.arrayBuffer());
 
         // Extract text from pickwave PDF using pdf-parse
-        const pdfParse = (await import('pdf-parse')).default;
+        const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
         const pwData = await pdfParse(pickwaveBuffer);
         pickwaveRawText = pwData.text;
 
