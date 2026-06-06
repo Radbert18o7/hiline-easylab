@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { Tag, Upload, FileText, X, Loader2, RefreshCw } from 'lucide-react';
+import { Tag, Upload, FileText, X, Loader2, RefreshCw, Search } from 'lucide-react';
 import ProgressBar from '@/components/ProgressBar/ProgressBar';
 
 export default function LabelsUpload({ user, onUploadSuccess }) {
@@ -16,6 +16,19 @@ export default function LabelsUpload({ user, onUploadSuccess }) {
   const [progressLabel, setProgressLabel] = useState('Processing...');
   const [result, setResult] = useState(null);
   const [loadingList, setLoadingList] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch available pickwave IDs
   async function fetchPickwaveList() {
@@ -147,23 +160,78 @@ export default function LabelsUpload({ user, onUploadSuccess }) {
 
       <div className="hl-card-body">
         {/* Pickwave selector */}
-        <div style={{ marginBottom: '16px' }}>
+        <div style={{ marginBottom: '16px', position: 'relative' }} ref={dropdownRef}>
           <label htmlFor="labels-pickwave-select" className="hl-label">Select Pickwave ID</label>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <select
-              id="labels-pickwave-select"
-              className="hl-select"
-              value={selectedPickwaveId}
-              onChange={e => setSelectedPickwaveId(e.target.value)}
-              disabled={loading}
-            >
-              <option value="">-- Select a Pickwave ID --</option>
-              {pickwaveList.map(pw => (
-                <option key={pw.id} value={pw.pickwave_id}>
-                  {pw.pickwave_id} — {new Date(pw.uploaded_at).toLocaleDateString()}
-                </option>
-              ))}
-            </select>
+            <div className="search-container" style={{ flex: 1, position: 'relative' }}>
+              <Search className="search-icon" size={16} />
+              <input
+                id="labels-pickwave-select"
+                type="text"
+                className="hl-input search-input"
+                placeholder="Search or Select a Pickwave ID..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setIsDropdownOpen(true);
+                  if (e.target.value !== selectedPickwaveId) setSelectedPickwaveId('');
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
+                disabled={loading}
+              />
+              {searchTerm && (
+                <button
+                  className="search-clear"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedPickwaveId('');
+                    setIsDropdownOpen(true);
+                  }}
+                  disabled={loading}
+                >
+                  <X size={14} />
+                </button>
+              )}
+              {isDropdownOpen && !loading && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+                  background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                  borderRadius: '12px', boxShadow: 'var(--shadow-md)', zIndex: 50,
+                  maxHeight: '200px', overflowY: 'auto'
+                }}>
+                  {pickwaveList.filter(pw => pw.pickwave_id.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
+                    <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                      No matches found
+                    </div>
+                  ) : (
+                    pickwaveList
+                      .filter(pw => pw.pickwave_id.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map(pw => (
+                        <div
+                          key={pw.id}
+                          onClick={() => {
+                            setSelectedPickwaveId(pw.pickwave_id);
+                            setSearchTerm(pw.pickwave_id);
+                            setIsDropdownOpen(false);
+                          }}
+                          style={{
+                            padding: '10px 16px', cursor: 'pointer', fontSize: '14px',
+                            borderBottom: '1px solid var(--border-color)',
+                            backgroundColor: selectedPickwaveId === pw.pickwave_id ? 'var(--bg-secondary)' : 'transparent',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = selectedPickwaveId === pw.pickwave_id ? 'var(--bg-secondary)' : 'transparent'}
+                        >
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{pw.pickwave_id}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Uploaded: {new Date(pw.uploaded_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
             <button
               id="refresh-pickwave-list-btn"
               className="hl-btn hl-btn-secondary"
