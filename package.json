@@ -1,0 +1,40 @@
+{
+  "name": "hiline-easy-lab",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js",
+    "start:win": "set NODE_ENV=production && node server.js",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@emoji-mart/data": "^1.2.1",
+    "@emoji-mart/react": "^1.1.1",
+    "@fingerprintjs/fingerprintjs": "^5.2.0",
+    "@supabase/supabase-js": "^2.107.0",
+    "bootstrap": "^5.3.8",
+    "canvas": "^3.2.3",
+    "express": "^5.2.1",
+    "framer-motion": "^12.40.0",
+    "lucide-react": "^1.17.0",
+    "next": "14.2.35",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^6.0.227",
+    "react": "^18",
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^18",
+    "react-dropzone": "^15.0.0",
+    "react-hot-toast": "^2.6.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "pg": "^8.21.0"
+  }
+}
