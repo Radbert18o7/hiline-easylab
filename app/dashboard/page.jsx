@@ -100,7 +100,12 @@ export default function DashboardPage() {
           ip: user.ip,
         }),
       });
-      const { user: savedUser } = await res.json();
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to save name');
+        return;
+      }
+      const savedUser = data.user;
       const updated = { ...savedUser, fingerprint: user.fingerprint, ip: user.ip };
       setUser(updated);
       setShowNameModal(false);
@@ -127,7 +132,12 @@ export default function DashboardPage() {
           name: nameInput.trim(),
         }),
       });
-      const { user: updated } = await res.json();
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to update name');
+        return;
+      }
+      const updated = data.user;
       setUser(prev => ({ ...prev, name: updated.name }));
       setShowNameModal(false);
       setNameInput('');

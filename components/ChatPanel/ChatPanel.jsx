@@ -185,6 +185,9 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
       .on('broadcast', { event: 'chat-reaction' }, ({ payload }) => {
         setMessages(prev => prev.map(m => m.id === payload.messageId ? { ...m, message: payload.message } : m));
       })
+      .on('broadcast', { event: 'name-change' }, ({ payload }) => {
+        setMessages(prev => prev.map(m => m.user_fingerprint === payload.fingerprint ? { ...m, user_name: payload.name } : m));
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
@@ -207,6 +210,12 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
         fingerprint: user.fingerprint,
         name: user.name || 'Anonymous',
         ip: user.ip || '',
+      });
+
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'name-change',
+        payload: { fingerprint: user.fingerprint, name: user.name || 'Anonymous' }
       });
     }
   }, [user?.name, user?.fingerprint, user?.ip]);

@@ -34,12 +34,26 @@ export async function POST(request) {
     return NextResponse.json({ error: 'fingerprint required' }, { status: 400 });
   }
 
+  const trimmedName = (name || 'Anonymous').trim();
+
+  if (trimmedName !== 'Anonymous') {
+    const { data: existing } = await supabaseAdmin
+      .from('users')
+      .select('fingerprint')
+      .eq('name', trimmedName)
+      .single();
+      
+    if (existing && existing.fingerprint !== fingerprint) {
+      return NextResponse.json({ error: 'Username is already taken' }, { status: 409 });
+    }
+  }
+
   const { data, error } = await supabaseAdmin
     .from('users')
     .upsert(
       {
         fingerprint,
-        name: name || 'Anonymous',
+        name: trimmedName,
         ip: ip || 'unknown',
         last_seen: new Date().toISOString(),
       },
@@ -64,9 +78,21 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'fingerprint and name required' }, { status: 400 });
   }
 
+  const trimmedName = name.trim();
+
+  const { data: existing } = await supabaseAdmin
+    .from('users')
+    .select('fingerprint')
+    .eq('name', trimmedName)
+    .single();
+    
+  if (existing && existing.fingerprint !== fingerprint) {
+    return NextResponse.json({ error: 'Username is already taken' }, { status: 409 });
+  }
+
   const { data, error } = await supabaseAdmin
     .from('users')
-    .update({ name, last_seen: new Date().toISOString() })
+    .update({ name: trimmedName, last_seen: new Date().toISOString() })
     .eq('fingerprint', fingerprint)
     .select()
     .single();
