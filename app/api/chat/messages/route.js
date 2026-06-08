@@ -43,3 +43,27 @@ export async function POST(request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+// PUT /api/chat/messages  — update a message (e.g. for reactions)
+export async function PUT(request) {
+  try {
+    const body = await request.json();
+    const { id, message } = body;
+
+    if (!id || !message) {
+      return NextResponse.json({ error: 'id and message required' }, { status: 400 });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('chat_messages')
+      .update({ message: typeof message === 'string' ? message.trim() : JSON.stringify(message) })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json({ message: data });
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

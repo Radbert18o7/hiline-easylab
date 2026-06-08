@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
-import { MessageSquare, X, Smile, Send, Paperclip, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { MessageSquare, X, Smile, Send, Paperclip, FileText, Image as ImageIcon, Loader2, Reply, SmilePlus } from 'lucide-react';
 
 // Web Audio API sound synthesis (no external files needed)
 function createSendSound() {
@@ -58,6 +58,9 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
   const isOpenRef = useRef(isOpen);
   const [readReceipts, setReadReceipts] = useState({});
   const readByMeRef = useRef(new Set());
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState(null);
+  const [reactingToId, setReactingToId] = useState(null);
 
   // Keep isOpen in ref for socket callbacks
   useEffect(() => {
@@ -179,6 +182,9 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
           return newReceipts;
         });
       })
+      .on('broadcast', { event: 'chat-reaction' }, ({ payload }) => {
+        setMessages(prev => prev.map(m => m.id === payload.messageId ? { ...m, message: payload.message } : m));
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
@@ -274,15 +280,18 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
     setStagedFile(null);
     setShowEmoji(false);
     setIsUploading(false);
+    const currentReply = replyingTo;
+    setReplyingTo(null);
 
     // Play send sound
     createSendSound();
 
     let finalMessageString = text;
-    if (attachmentObj) {
+    if (attachmentObj || replyingTo) {
       finalMessageString = JSON.stringify({
         text: text,
-        attachment: attachmentObj
+        attachment: attachmentObj || undefined,
+        replyTo: replyingTo || undefined
       });
     }
 
@@ -379,6 +388,38 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
     inputRef.current?.focus();
   }
 
+  function handleReactionSelect(emoji) {
+    if (!reactingToId) return;
+    const msgToReact = messages.find((m, i) => (m.id || i) === reactingToId);
+    if (!msgToReact) return;
+    
+    let parsed = parseMessagePayload(msgToReact.message);
+    if (!parsed.reactions) parsed.reactions = {};
+    if (!parsed.reactions[emoji.native]) parsed.reactions[emoji.native] = [];
+    if (!parsed.reactions[emoji.native].includes(user.name || 'Anonymous')) {
+      parsed.reactions[emoji.native].push(user.name || 'Anonymous');
+    }
+
+    const newMessageString = JSON.stringify(parsed);
+
+    if (msgToReact.id) {
+      fetch('/api/chat/messages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: msgToReact.id, message: newMessageString })
+      });
+    }
+
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'chat-reaction',
+      payload: { messageId: msgToReact.id, message: newMessageString }
+    });
+
+    setMessages(prev => prev.map((m, i) => (m.id || i) === reactingToId ? { ...m, message: newMessageString } : m));
+    setReactingToId(null);
+  }
+
   function formatTime(ts) {
     return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
@@ -441,12 +482,36 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
           const hasImage = parsed.attachment && parsed.attachment.type.startsWith('image/');
 
           return (
-            <div key={msg.id || i} className={`chat-message ${isOwn ? 'own' : 'other'}`} id={`msg-${i}`}>
+            <div 
+              key={msg.id || i} 
+              className={`chat-message ${isOwn ? 'own' : 'other'}`} 
+              id={`msg-${i}`}
+              onMouseEnter={() => setHoveredMessageId(msg.id || i)}
+              onMouseLeave={() => { setHoveredMessageId(null); setReactingToId(null); }}
+              style={{ position: 'relative' }}
+            >
+              {hoveredMessageId === (msg.id || i) && (
+                <div style={{ position: 'absolute', top: '-10px', [isOwn ? 'left' : 'right']: 0, display: 'flex', gap: '4px', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 10 }}>
+                  <button className="icon-btn" style={{ padding: '4px' }} onClick={() => setReplyingTo({ id: msg.id || i, text: parsed.text || 'Attachment', user_name: msg.user_name || 'Anonymous' })} title="Reply"><Reply size={14} /></button>
+                  <button className="icon-btn" style={{ padding: '4px' }} onClick={() => setReactingToId(msg.id || i)} title="React"><SmilePlus size={14} /></button>
+                  {reactingToId === (msg.id || i) && EmojiPicker && (
+                    <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 50 }}>
+                      <EmojiPicker onEmojiSelect={handleReactionSelect} theme="auto" previewPosition="none" skinTonePosition="none" />
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="msg-meta">
                 {!isOwn && <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '11px' }}>{msg.user_name}</span>}
                 <span>{formatTime(msg.created_at)}</span>
               </div>
               <div className="msg-bubble" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {parsed.replyTo && (
+                  <div style={{ padding: '6px 10px', background: 'rgba(0,0,0,0.15)', borderLeft: '3px solid var(--accent-primary)', borderRadius: '4px', fontSize: '12px', marginBottom: '4px', opacity: 0.8 }}>
+                    <div style={{ fontWeight: 600, marginBottom: '2px' }}>{parsed.replyTo.user_name}</div>
+                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>{parsed.replyTo.text}</div>
+                  </div>
+                )}
                 {parsed.attachment && (
                   <div className="msg-attachment">
                     {hasImage ? (
@@ -472,6 +537,15 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
                   <span>✓✓</span> Read by {readReceipts[msg.id].join(', ')}
                 </div>
               )}
+              {parsed.reactions && Object.keys(parsed.reactions).length > 0 && (
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignSelf: isOwn ? 'flex-end' : 'flex-start', marginTop: '2px' }}>
+                  {Object.entries(parsed.reactions).map(([emoji, users]) => (
+                    <div key={emoji} title={users.join(', ')} style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '12px', fontSize: '11px', border: '1px solid var(--border)', cursor: 'default' }}>
+                      {emoji} {users.length}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -492,6 +566,16 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
 
       {/* Input Area */}
       <div className="chat-input-area" style={{ position: 'relative' }}>
+        {replyingTo && (
+          <div style={{ position: 'absolute', top: stagedFile ? '-80px' : '-40px', left: '16px', right: '16px', background: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', fontSize: '12px' }}>
+              <Reply size={14} className="text-muted" />
+              <span style={{ fontWeight: 600 }}>{replyingTo.user_name}</span>
+              <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '150px', opacity: 0.7 }}>{replyingTo.text}</span>
+            </div>
+            <button className="icon-btn" onClick={() => setReplyingTo(null)} style={{ padding: 0 }}><X size={14} /></button>
+          </div>
+        )}
         {stagedFile && (
           <div style={{ position: 'absolute', top: '-40px', left: '16px', right: '16px', background: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
