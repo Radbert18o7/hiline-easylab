@@ -73,6 +73,28 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
     });
   }, []);
 
+  // Request notification permission
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // 5-minute unread reminder
+  useEffect(() => {
+    const reminderInterval = setInterval(() => {
+      if (!isOpenRef.current && unreadRef.current > 0) {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('Team Chat Reminder', {
+            body: `You have ${unreadRef.current} unread message(s) waiting for you.`,
+          });
+        }
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(reminderInterval);
+  }, []);
+
   // Load message history
   async function loadMessages() {
     try {
@@ -125,6 +147,21 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
           if (!isOpenRef.current) {
             unreadRef.current += 1;
             onUnreadChange?.(unreadRef.current);
+            
+            // Show browser notification
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              let bodyText = 'Sent an attachment';
+              try {
+                const parsed = JSON.parse(msg.message);
+                if (parsed.text) bodyText = parsed.text;
+                else if (!parsed.attachment) bodyText = msg.message;
+              } catch {
+                bodyText = msg.message;
+              }
+              new Notification(`New message from ${msg.user_name || 'Anonymous'}`, {
+                body: bodyText,
+              });
+            }
           }
         }
       })
