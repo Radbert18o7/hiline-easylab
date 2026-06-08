@@ -56,6 +56,8 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
   const channelRef = useRef(null);
   const unreadRef = useRef(0);
   const isOpenRef = useRef(isOpen);
+  const [readReceipts, setReadReceipts] = useState({});
+  const readByMeRef = useRef(new Set());
 
   // Keep isOpen in ref for socket callbacks
   useEffect(() => {
@@ -165,6 +167,18 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
           }
         }
       })
+      .on('broadcast', { event: 'read-receipt' }, ({ payload }) => {
+        setReadReceipts(prev => {
+          const newReceipts = { ...prev };
+          if (!newReceipts[payload.messageId]) {
+            newReceipts[payload.messageId] = [];
+          }
+          if (!newReceipts[payload.messageId].includes(payload.readerName)) {
+            newReceipts[payload.messageId] = [...newReceipts[payload.messageId], payload.readerName];
+          }
+          return newReceipts;
+        });
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
@@ -190,6 +204,22 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
       });
     }
   }, [user?.name, user?.fingerprint, user?.ip]);
+
+  // Emit read receipts for others' messages when chat is open
+  useEffect(() => {
+    if (isOpen && channelRef.current && user?.fingerprint) {
+      messages.forEach(msg => {
+        if (msg.user_fingerprint !== user.fingerprint && !readByMeRef.current.has(msg.id)) {
+          readByMeRef.current.add(msg.id);
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'read-receipt',
+            payload: { messageId: msg.id, readerName: user.name || 'Anonymous' }
+          });
+        }
+      });
+    }
+  }, [messages, isOpen, user]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -437,6 +467,11 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
                 )}
                 {parsed.text && <div>{parsed.text}</div>}
               </div>
+              {isOwn && readReceipts[msg.id] && readReceipts[msg.id].length > 0 && (
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', marginTop: '4px', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span>✓✓</span> Read by {readReceipts[msg.id].join(', ')}
+                </div>
+              )}
             </div>
           );
         })}
