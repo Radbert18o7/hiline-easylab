@@ -37,13 +37,36 @@ export async function POST(request) {
   const trimmedName = (name || 'Anonymous').trim();
 
   if (trimmedName !== 'Anonymous') {
-    const { data: existing } = await supabaseAdmin
+    // 1. Check active users
+    const { data: users } = await supabaseAdmin
       .from('users')
       .select('fingerprint')
       .eq('name', trimmedName)
-      .single();
+      .limit(1);
       
-    if (existing && existing.fingerprint !== fingerprint) {
+    if (users && users.length > 0 && users[0].fingerprint !== fingerprint) {
+      return NextResponse.json({ error: 'Username is already taken' }, { status: 409 });
+    }
+
+    // 2. Check historical usage in chat_messages
+    const { data: messages } = await supabaseAdmin
+      .from('chat_messages')
+      .select('user_fingerprint')
+      .eq('user_name', trimmedName)
+      .limit(1);
+      
+    if (messages && messages.length > 0 && messages[0].user_fingerprint !== fingerprint) {
+      return NextResponse.json({ error: 'Username is already taken' }, { status: 409 });
+    }
+
+    // 3. Check historical usage in activity_logs
+    const { data: logs } = await supabaseAdmin
+      .from('activity_logs')
+      .select('user_fingerprint')
+      .eq('user_name', trimmedName)
+      .limit(1);
+      
+    if (logs && logs.length > 0 && logs[0].user_fingerprint !== fingerprint) {
       return NextResponse.json({ error: 'Username is already taken' }, { status: 409 });
     }
   }
@@ -80,14 +103,39 @@ export async function PATCH(request) {
 
   const trimmedName = name.trim();
 
-  const { data: existing } = await supabaseAdmin
-    .from('users')
-    .select('fingerprint')
-    .eq('name', trimmedName)
-    .single();
-    
-  if (existing && existing.fingerprint !== fingerprint) {
-    return NextResponse.json({ error: 'Username is already taken' }, { status: 409 });
+  if (trimmedName !== 'Anonymous') {
+    // 1. Check active users
+    const { data: users } = await supabaseAdmin
+      .from('users')
+      .select('fingerprint')
+      .eq('name', trimmedName)
+      .limit(1);
+      
+    if (users && users.length > 0 && users[0].fingerprint !== fingerprint) {
+      return NextResponse.json({ error: 'Username is already taken' }, { status: 409 });
+    }
+
+    // 2. Check historical usage in chat_messages
+    const { data: messages } = await supabaseAdmin
+      .from('chat_messages')
+      .select('user_fingerprint')
+      .eq('user_name', trimmedName)
+      .limit(1);
+      
+    if (messages && messages.length > 0 && messages[0].user_fingerprint !== fingerprint) {
+      return NextResponse.json({ error: 'Username is already taken' }, { status: 409 });
+    }
+
+    // 3. Check historical usage in activity_logs
+    const { data: logs } = await supabaseAdmin
+      .from('activity_logs')
+      .select('user_fingerprint')
+      .eq('user_name', trimmedName)
+      .limit(1);
+      
+    if (logs && logs.length > 0 && logs[0].user_fingerprint !== fingerprint) {
+      return NextResponse.json({ error: 'Username is already taken' }, { status: 409 });
+    }
   }
 
   const { data, error } = await supabaseAdmin
