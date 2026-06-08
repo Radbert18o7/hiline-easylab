@@ -61,6 +61,7 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const [reactingToId, setReactingToId] = useState(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   // Keep isOpen in ref for socket callbacks
   useEffect(() => {
@@ -114,6 +115,7 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
     if (!user?.fingerprint) return;
 
     loadMessages();
+    setIsSubscribed(false);
 
     const channel = supabase.channel('global-chat', {
       config: {
@@ -190,6 +192,7 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
+          setIsSubscribed(true);
           await channel.track({
             fingerprint: user.fingerprint,
             name: user.name || 'Anonymous',
@@ -205,7 +208,7 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
 
   // Update user name in presence
   useEffect(() => {
-    if (channelRef.current && user?.fingerprint) {
+    if (isSubscribed && channelRef.current && user?.fingerprint) {
       channelRef.current.track({
         fingerprint: user.fingerprint,
         name: user.name || 'Anonymous',
@@ -218,11 +221,11 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
         payload: { fingerprint: user.fingerprint, name: user.name || 'Anonymous' }
       });
     }
-  }, [user?.name, user?.fingerprint, user?.ip]);
+  }, [user?.name, user?.fingerprint, user?.ip, isSubscribed]);
 
   // Emit read receipts for others' messages when chat is open
   useEffect(() => {
-    if (isOpen && channelRef.current && user?.fingerprint) {
+    if (isOpen && isSubscribed && channelRef.current && user?.fingerprint) {
       messages.forEach(msg => {
         if (msg.user_fingerprint !== user.fingerprint && !readByMeRef.current.has(msg.id)) {
           readByMeRef.current.add(msg.id);
@@ -234,7 +237,7 @@ export default function ChatPanel({ user, isOpen, onClose, onUnreadChange }) {
         }
       });
     }
-  }, [messages, isOpen, user]);
+  }, [messages, isOpen, user, isSubscribed]);
 
   // Scroll to bottom
   useEffect(() => {
