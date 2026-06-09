@@ -75,11 +75,11 @@ export async function POST(request) {
 
     // 4. Process labels
     console.log('[route.js] Calling processLabelsPdf...');
-    const { buffer: processedBuffer, matchedCount, totalPages } = await processLabelsPdf(
+    const { buffer: processedBuffer, matchedCount, totalPages, originalPages } = await processLabelsPdf(
       labelsBuffer,
       pickwaveBuffer
     );
-    console.log(`[route.js] processLabelsPdf returned: ${matchedCount}/${totalPages} matched`);
+    console.log(`[route.js] processLabelsPdf returned: ${matchedCount}/${totalPages} matched (original: ${originalPages})`);
 
     // 5. Upload processed PDF
     const processedFileName = `${pickwaveId}_processed_${timestamp}.pdf`;
@@ -127,6 +127,7 @@ export async function POST(request) {
         processed_file_url: processedFileUrl,
         matched_count: matchedCount,
         total_pages: totalPages,
+        original_pages: originalPages,
       },
     });
     console.log('[route.js] Activity logged');
@@ -138,6 +139,7 @@ export async function POST(request) {
       processedFileUrl,
       matchedCount,
       totalPages,
+      originalPages,
       record: labelRecord,
     });
 

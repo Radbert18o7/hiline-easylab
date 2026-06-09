@@ -321,7 +321,11 @@ export default function LabelsUpload({ user, onUploadSuccess }) {
                   Processing Complete!
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  {result.matchedCount} of {result.totalPages} pages matched with SKUs
+                  {result.totalPages > result.originalPages ? (
+                    `${result.matchedCount} of ${result.originalPages} labels matched (${result.totalPages - result.originalPages} missing labels dynamically added)`
+                  ) : (
+                    `${result.matchedCount} of ${result.totalPages} pages matched with SKUs`
+                  )}
                 </div>
               </div>
             </div>
