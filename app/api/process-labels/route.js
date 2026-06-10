@@ -75,7 +75,7 @@ export async function POST(request) {
 
     // 4. Process labels
     console.log('[route.js] Calling processLabelsPdf...');
-    const { buffer: processedBuffer, matchedCount, totalPages, originalPages } = await processLabelsPdf(
+    const { buffer: processedBuffer, matchedCount, totalPages, originalPages, unmatchedNames } = await processLabelsPdf(
       labelsBuffer,
       pickwaveBuffer
     );
@@ -140,6 +140,7 @@ export async function POST(request) {
       matchedCount,
       totalPages,
       originalPages,
+      unmatchedNames,
       record: labelRecord,
     });
 

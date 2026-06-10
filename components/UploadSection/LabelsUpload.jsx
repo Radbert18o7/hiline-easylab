@@ -326,6 +326,11 @@ export default function LabelsUpload({ user, onUploadSuccess }) {
                   ) : (
                     `${result.matchedCount} of ${result.totalPages} pages matched with SKUs`
                   )}
+                  {result.unmatchedNames && result.unmatchedNames.length > 0 && (
+                    <div style={{ marginTop: '8px', color: 'var(--danger, #ef4444)' }}>
+                      <strong>Failed to match:</strong> {result.unmatchedNames.join(', ')}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
